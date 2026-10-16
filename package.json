@@ -124,10 +124,6 @@
       {
         "command": "snapswitch.openProject9",
         "title": "SnapSwitch: Open Project 9"
-      },
-      {
-        "command": "snapswitch.openTerminal",
-        "title": "SnapSwitch: Open Terminal"
       }
     ],
     "keybindings": [
@@ -186,10 +182,9 @@
         "when": "editorTextFocus || !editorTextFocus"
       },
       {
-        "command": "snapswitch.openTerminal",
-        "key": "cmd+[Backquote]",
-        "mac": "cmd+[Backquote]",
-        "when": "editorTextFocus || !editorTextFocus"
+        "command": "snapswitch.switchProject",
+        "key": "ctrl+alt+p",
+        "mac": "cmd+alt+p"
       }
     ],
     "menus": {
@@ -222,6 +217,8 @@
         "projectTabs.projects": {
           "type": "array",
           "default": [],
+          "scope": "application",
+          "description": "Pinned projects. Application-scoped so every VS Code / Cursor profile shares the same list.",
           "items": {
             "type": "object",
             "properties": {

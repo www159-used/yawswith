@@ -13,13 +13,6 @@ This document outlines the planned features and improvements for **SnapSwitch**.
   - `Cmd+1` switches to project 1, `Cmd+2` to project 2, etc.
   - Supports slots 1 through 9.
 
-### 💰 Monetization & Support
-- **Status**: Completed in v1.0.0
-- **Feature**: Added a premium-styled "Support Developer" button to the Dashboard sidebar.
-- **Link**: [GitHub Sponsors](https://github.com/sponsors/spinykiller)
-
----
-
 ## 🚀 Upcoming Features
 
 - [x] **Drag-and-Drop Reordering**: Allow users to manually sort their pinned projects via the sidebar.
@@ -37,4 +30,4 @@ This document outlines the planned features and improvements for **SnapSwitch**.
 ## 🛠️ Performance & Internal Goals
 - [x] Optimize webview rendering for large lists (>20 projects).
 - [ ] Improve focus detection when switching folders to ensure the sidebar stays responsive.
-- [ ] Improve global state management and cross-window sync mechanisms for pinned projects.
+- [x] Improve global state management and cross-window sync mechanisms for pinned projects.

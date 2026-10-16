@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+- **Share context across Profiles:** Pinned projects, recents, and launch stats now live in application-wide storage, so switching VS Code / Cursor Profiles keeps the same SnapSwitch list. Existing per-profile data is migrated on first launch.
+- **Removed the Support Developer / donation button** from the sidebar and docs.
+- **Quieter sidebar:** drop Recent (duplicate / "Unpinned" noise), launch-count badges, Git branch chips, and the leftover Left/Right control.
+- **Removed SnapSwitch Terminal** (status bar, sidebar, and `` Cmd+` ``). Use the editor's own panel shortcut.
+- **Pinned Quick Pick shortcut:** `Cmd+Alt+P` (Windows/Linux: `Ctrl+Alt+P`). Name and path both fuzzy-match.
+
 ## 4.0.2
 - **Enhanced Tooltips & Clarity:** Hovering over status bar buttons now explicitly shows their active keyboard shortcuts! The generic terminal icon also now correctly displays as "Terminal" on the status bar.
 - **Developer Pipeline:** Added a standard `Makefile` for streamlined builds and deployments.

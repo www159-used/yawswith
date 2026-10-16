@@ -1,14 +1,31 @@
-.PHONY: build install deploy deploy-vsce deploy-ovsx clean
+.PHONY: test build install deploy deploy-vsce deploy-ovsx clean
+
+test:
+	node --test src/sharedStore.test.js
+
 
 # Build the extension into a .vsix package
 build: clean
 	@echo "Packaging extension..."
 	npx --yes @vscode/vsce package
 
-# Install the extension locally in VS Code for testing
+# Install into Codium (all local profiles) and Cursor.
+# Do not use `code` here: on this machine it is aliased to codium only.
 install: build
-	@echo "Installing locally..."
-	code --install-extension snapswitch-vscode-*.vsix --force
+	@vsix=$$(ls -t snapswitch-vscode-*.vsix | head -1); \
+	echo "Installing $$vsix"; \
+	if command -v codium >/dev/null 2>&1; then \
+		codium --install-extension "$$vsix" --force; \
+		python3 -c "import json,pathlib; p=pathlib.Path.home()/'Library/Application Support/VSCodium/User/globalStorage/storage.json';\
+print('\n'.join(x.get('name','') for x in json.loads(p.read_text()).get('userDataProfiles',[]) if x.get('name')))" 2>/dev/null \
+		| while read -r p; do \
+			[ -n "$$p" ] || continue; \
+			codium --install-extension "$$vsix" --force --profile "$$p" || true; \
+		done; \
+	fi; \
+	if [ -x /Applications/Cursor.app/Contents/Resources/app/bin/cursor ]; then \
+		/Applications/Cursor.app/Contents/Resources/app/bin/cursor --install-extension "$$vsix" --force; \
+	fi
 
 # Deploy to both Microsoft VS Marketplace and OpenVSX
 deploy: build deploy-vsce deploy-ovsx

@@ -29,7 +29,7 @@ Less clicking, zero mess—context switching made completely frictionless.
 - **Git State Indicators**: Live Git branch & uncommitted changes directly on UI badges
 - **Customization & Grouping**: Tag your projects under sub-folders or assign dynamic Codicons!
 - **Extended Workspace Syncing**: `.code-workspace` native support along with Analytics and Auto-Recent project logs.
-- **Quick Terminal Access**: Open or focus your terminal instantly from the status bar, sidebar button, or using `` Cmd + ` `` / `Cmd + ₹`.
+- **Pinned project picker**: `Cmd+Alt+P` opens a Quick Pick of pinned projects (fuzzy match on name and path).
 
 ## Install
 
@@ -50,19 +50,12 @@ npx --yes vsce package --no-dependencies
 | Pin current project | Command Palette → **SnapSwitch: Pin Current Project** |
 | Switch project (one click) | Click a project button in the Status Bar |
 | Switch project (shortcut) | **Cmd + <Number>** (1-9) for pinned projects |
-| Switch project (picker) | Command Palette → **SnapSwitch: Switch Project** |
+| Switch project (picker) | **Cmd+Alt+P** or Command Palette → **SnapSwitch: Switch Project** |
 | Switch project (side bar) | Open **Pinned Projects** view and click a project |
-| Quick Terminal Access | Click Terminal in Status Bar/Sidebar or **Cmd + \`** / **Cmd + ₹** |
-
-## Support & Donation
-
-If you find SnapSwitch useful, consider supporting the development:
-- [GitHub Sponsors](https://github.com/sponsors/spinykiller)
-- [Support via Sidebar Dashboard]
 
 ## How It Works
 
-Projects are saved globally in VS Code settings (`projectTabs.projects`).  
+Pinned projects, recents, and launch stats are stored in an application-wide file (outside any single Profile) and mirrored to `projectTabs.projects` as an application-scoped setting. Switching Profiles therefore keeps the same project list.  
 Clicking a tab runs `vscode.openFolder` — same as File → Open Folder — switching full context.
 
 ## Settings

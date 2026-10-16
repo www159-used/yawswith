@@ -1,4 +1,8 @@
 const vscode = require('vscode');
+const { createSharedStore, collectProjectsFromEditorSettings } = require('./sharedStore');
+
+let sharedStore = null;
+let mirroringSettings = false;
 
 class SnapSwitchViewProvider {
   constructor(context) {
@@ -18,7 +22,7 @@ class SnapSwitchViewProvider {
 
     webviewView.webview.onDidReceiveMessage(async message => {
       const config = vscode.workspace.getConfiguration('projectTabs');
-      let projects = config.get('projects') || [];
+      let projects = getPinnedProjects();
 
       switch (message.command) {
         case 'switchProject': {
@@ -49,8 +53,8 @@ class SnapSwitchViewProvider {
                 value: defaultName
               });
               if (name) {
-                projects.push({ name, path });
-                await config.update('projects', projects, vscode.ConfigurationTarget.Global);
+                projects = [...projects, { name, path }];
+                await saveProjects(projects);
                 this._render();
               }
             } else {
@@ -61,7 +65,7 @@ class SnapSwitchViewProvider {
         }
         case 'removeProject': {
           projects = projects.filter(p => p.path !== message.path);
-          await config.update('projects', projects, vscode.ConfigurationTarget.Global);
+          await saveProjects(projects);
           this._render();
           break;
         }
@@ -86,7 +90,7 @@ class SnapSwitchViewProvider {
             });
             if (newIcon !== undefined) project.icon = newIcon === '' ? undefined : newIcon;
             
-            await config.update('projects', projects, vscode.ConfigurationTarget.Global);
+            await saveProjects(projects);
             this._render();
           }
           break;
@@ -98,7 +102,7 @@ class SnapSwitchViewProvider {
           if (fromIdx !== -1 && toIdx !== -1) {
             const [moved] = projects.splice(fromIdx, 1);
             projects.splice(toIdx, 0, moved);
-            await config.update('projects', projects, vscode.ConfigurationTarget.Global);
+            await saveProjects(projects);
           }
           this._render();
           break;
@@ -107,10 +111,6 @@ class SnapSwitchViewProvider {
           const pos = ['left', 'right'].includes(message.position) ? message.position : 'left';
           await config.update('position', pos, vscode.ConfigurationTarget.Global);
           this._render();
-          break;
-        }
-        case 'openTerminal': {
-          vscode.commands.executeCommand('snapswitch.openTerminal');
           break;
         }
       }
@@ -126,25 +126,7 @@ class SnapSwitchViewProvider {
 
   _render() {
     if (!this._view) return;
-    const config = vscode.workspace.getConfiguration('projectTabs');
-    const projects = config.get('projects') || [];
-    const position = ['left', 'right'].includes(config.get('position')) ? config.get('position') : 'left';
-    const showRecent = config.get('showRecentProjects') !== false;
-    const active = getActivePath();
-    const stats = this._context.globalState.get('snapswitch.projectStats') || {};
-    const recent = this._context.globalState.get('snapswitch.recentProjects') || [];
-    
-    this._view.webview.html = getHtml(projects, active, position, showRecent, recent, stats);
-
-    // Asynchronously fetch and inject git states
-    if (projects.length > 0) {
-      Promise.all(projects.map(async p => {
-        const state = await getGitState(p.path);
-        if (state && this._view) {
-          this._view.webview.postMessage({ command: 'gitState', path: p.path, state });
-        }
-      })).catch(() => {});
-    }
+    this._view.webview.html = getHtml(getPinnedProjects(), getActivePath());
   }
 
   refresh() { this._render(); }
@@ -155,22 +137,6 @@ function getActivePath() {
   return vscode.workspace.workspaceFolders?.[0]?.uri?.fsPath || null;
 }
 
-const cp = require('child_process');
-const util = require('util');
-const exec = util.promisify(cp.exec);
-
-async function getGitState(dir) {
-  try {
-    const { stdout: branch } = await exec('git branch --show-current', { cwd: dir, timeout: 800 });
-    if (!branch.trim()) return null;
-    const { stdout: status } = await exec('git status --porcelain', { cwd: dir, timeout: 800 });
-    const changes = status.split('\n').filter(l => l.trim()).length;
-    return { branch: branch.trim(), changes };
-  } catch (e) {
-    return null;
-  }
-}
-
 function getActiveName() {
   if (vscode.workspace.workspaceFile) {
     const raw = vscode.workspace.workspaceFile.path;
@@ -179,23 +145,25 @@ function getActiveName() {
   return vscode.workspace.workspaceFolders?.[0]?.name || null;
 }
 
-function trackLaunch(context, path) {
-  const stats = context.globalState.get('snapswitch.projectStats') || {};
-  if (!stats[path]) stats[path] = { count: 0, last: 0 };
-  stats[path].count++;
-  stats[path].last = Date.now();
-  context.globalState.update('snapswitch.projectStats', stats);
+async function persistProjectsToSettings(projects) {
+  const config = vscode.workspace.getConfiguration('projectTabs');
+  const current = config.get('projects') || [];
+  if (JSON.stringify(current) === JSON.stringify(projects)) return;
+  mirroringSettings = true;
+  try {
+    await config.update('projects', projects, vscode.ConfigurationTarget.Global);
+  } finally {
+    setTimeout(() => { mirroringSettings = false; }, 80);
+  }
 }
 
-function trackRecent(context) {
-  const path = getActivePath();
-  if (!path) return;
-  const name = getActiveName();
-  let recents = context.globalState.get('snapswitch.recentProjects') || [];
-  recents = recents.filter(p => p.path !== path);
-  recents.unshift({ name, path });
-  if (recents.length > 5) recents.length = 5;
-  context.globalState.update('snapswitch.recentProjects', recents);
+async function saveProjects(projects) {
+  if (sharedStore) sharedStore.setProjects(projects);
+  await persistProjectsToSettings(projects);
+}
+
+function trackLaunch(_context, projectPath) {
+  sharedStore?.trackLaunch(projectPath);
 }
 
 async function addCurrentProject(context) {
@@ -204,8 +172,7 @@ async function addCurrentProject(context) {
     vscode.window.showWarningMessage('No workspace/folder is currently open.');
     return;
   }
-  const config = vscode.workspace.getConfiguration('projectTabs');
-  const projects = config.get('projects') || [];
+  const projects = getPinnedProjects();
 
   if (projects.find(p => p.path === path)) {
     vscode.window.showInformationMessage('Already pinned!');
@@ -218,14 +185,12 @@ async function addCurrentProject(context) {
   });
   if (!name) return;
 
-  projects.push({ name, path });
-  await config.update('projects', projects, vscode.ConfigurationTarget.Global);
+  await saveProjects([...projects, { name, path }]);
   vscode.window.showInformationMessage(`Pinned "${name}"`);
 }
 
 async function switchProjectQuickPick() {
-  const config = vscode.workspace.getConfiguration('projectTabs');
-  const projects = config.get('projects') || [];
+  const projects = getPinnedProjects();
   if (projects.length === 0) {
     vscode.window.showInformationMessage('No pinned projects yet. Use "Pin Current Project" first.');
     return;
@@ -239,7 +204,7 @@ async function switchProjectQuickPick() {
       path: p.path,
       picked: p.path === activePath
     })),
-    { placeHolder: 'Switch to a pinned project' }
+    { placeHolder: 'Switch to a pinned project', matchOnDescription: true }
   );
   if (!picked) return;
 
@@ -252,16 +217,51 @@ async function focusProjectTabsView() {
 }
 
 function getPinnedProjects() {
-  const config = vscode.workspace.getConfiguration('projectTabs');
-  const projects = config.get('projects') || [];
+  const projects = sharedStore ? sharedStore.getProjects() : [];
   
   // Deduplicate by path just in case
   const seen = new Set();
   return projects.filter(p => {
-    if (seen.has(p.path)) return false;
+    if (!p?.path || seen.has(p.path)) return false;
     seen.add(p.path);
     return true;
   });
+}
+
+function collectProfileProjects(context) {
+  const config = vscode.workspace.getConfiguration('projectTabs');
+  const inspect = config.inspect('projects') || {};
+  const buckets = [
+    config.get('projects'),
+    inspect.globalValue,
+    inspect.workspaceValue,
+    inspect.applicationValue,
+    collectProjectsFromEditorSettings(context?.globalStorageUri?.fsPath)
+  ];
+  const seen = new Set();
+  const out = [];
+  for (const list of buckets) {
+    for (const p of list || []) {
+      if (!p?.path || seen.has(p.path)) continue;
+      seen.add(p.path);
+      out.push(p);
+    }
+  }
+  return out;
+}
+
+function initSharedStore(context) {
+  sharedStore = createSharedStore(context);
+  const alreadyMigrated = context.globalState.get('snapswitch.sharedStoreMigrated');
+  if (!alreadyMigrated) {
+    sharedStore.hydrateFromProfile({
+      projects: collectProfileProjects(context),
+      stats: context.globalState.get('snapswitch.projectStats') || {},
+      recents: context.globalState.get('snapswitch.recentProjects') || []
+    });
+    context.globalState.update('snapswitch.sharedStoreMigrated', true);
+  }
+  return persistProjectsToSettings(sharedStore.getProjects());
 }
 
 function getStatusBarMaxItems() {
@@ -322,7 +322,6 @@ class SnapSwitchTreeProvider {
 
   _createProjectItem(p, activePath) {
     const item = new vscode.TreeItem(p.name, vscode.TreeItemCollapsibleState.None);
-    item.description = p.path;
     item.tooltip = p.path;
     item.contextValue = 'snapswitchProject';
     item.command = {
@@ -343,23 +342,21 @@ class SnapSwitchTreeProvider {
 }
 
 function activate(context) {
-  // Track open on activate to populate Recents Analytics
-  trackRecent(context);
+  initSharedStore(context).catch(() => {});
 
   const provider = new SnapSwitchViewProvider(context);
   const treeProvider = new SnapSwitchTreeProvider();
+  const refreshAll = () => {
+    provider.refresh();
+    treeProvider.refresh();
+    refreshProjectStatusBar();
+  };
 
   const statusSwitch = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   statusSwitch.text = '$(rocket) SnapSwitch';
   statusSwitch.tooltip = 'Switch project (SnapSwitch)';
   statusSwitch.command = 'snapswitch.switchProject';
   statusSwitch.show();
-
-  const statusTerminal = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
-  statusTerminal.text = '$(terminal) Terminal';
-  statusTerminal.tooltip = 'Open Terminal (Cmd+`)';
-  statusTerminal.command = 'snapswitch.openTerminal';
-  statusTerminal.show();
 
   let projectStatusDisposables = [];
   const refreshProjectStatusBar = () => {
@@ -389,7 +386,6 @@ function activate(context) {
 
   context.subscriptions.push(
     statusSwitch,
-    statusTerminal,
     { dispose: () => projectStatusDisposables.forEach(d => d.dispose()) },
     vscode.window.registerWebviewViewProvider('snapswitch.sidebarView', provider, {
       webviewOptions: { retainContextWhenHidden: true }
@@ -400,9 +396,6 @@ function activate(context) {
       provider.refresh();
       treeProvider.refresh();
       refreshProjectStatusBar();
-    }),
-    vscode.commands.registerCommand('snapswitch.openTerminal', () => {
-      vscode.commands.executeCommand('workbench.action.terminal.toggleTerminal');
     }),
     vscode.commands.registerCommand('snapswitch.switchProject', async () => {
       await switchProjectQuickPick();
@@ -427,30 +420,36 @@ function activate(context) {
       })
     ),
     vscode.commands.registerCommand('snapswitch.removeProject', async () => {
-      const config = vscode.workspace.getConfiguration('projectTabs');
-      const projects = config.get('projects') || [];
+      const projects = getPinnedProjects();
       const picked = await vscode.window.showQuickPick(
         projects.map(p => ({ label: p.name, description: p.path, path: p.path })),
         { placeHolder: 'Select project to remove' }
       );
       if (!picked) return;
-      const updated = projects.filter(p => p.path !== picked.path);
-      await config.update('projects', updated, vscode.ConfigurationTarget.Global);
+      await saveProjects(projects.filter(p => p.path !== picked.path));
       provider.refresh();
       treeProvider.refresh();
       refreshProjectStatusBar();
     })
   );
 
+  context.subscriptions.push(sharedStore.watch(() => {
+    persistProjectsToSettings(sharedStore.getProjects()).catch(() => {});
+    refreshAll();
+  }));
+
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(e => {
-      if (
-        e.affectsConfiguration('projectTabs')
-      ) {
-        provider.refresh();
-        treeProvider.refresh();
-        refreshProjectStatusBar();
+      if (!e.affectsConfiguration('projectTabs')) return;
+      if (e.affectsConfiguration('projectTabs.projects') && !mirroringSettings && sharedStore) {
+        const fromSettings = vscode.workspace.getConfiguration('projectTabs').get('projects') || [];
+        if (JSON.stringify(fromSettings) !== JSON.stringify(sharedStore.getProjects())) {
+          sharedStore.setProjects(fromSettings);
+        }
       }
+      provider.refresh();
+      treeProvider.refresh();
+      refreshProjectStatusBar();
     }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       provider.refresh();
@@ -460,7 +459,7 @@ function activate(context) {
   );
 }
 
-function getHtml(projects, activePath, position, showRecent, recentProjects, stats) {
+function getHtml(projects, activePath) {
   // Grouping logic
   const groups = {};
   const groupKeys = [];
@@ -483,11 +482,6 @@ function getHtml(projects, activePath, position, showRecent, recentProjects, sta
     const shortcutIndex = index + 1;
     const shortcutHtml = shortcutIndex <= 9 ? `<span class="shortcut-n">${shortcutIndex}: </span>` : '';
     const safeName = escapeHtml(p.name);
-    const shortPath = escapeHtml(p.path.replace(/\\/g, '/').split('/').slice(-2).join('/'));
-    
-    // Check launch stats
-    const launchCount = stats[p.path]?.count || 0;
-    const badgeHtml = launchCount > 0 ? `<div class="launch-badge" title="${launchCount} launches">${launchCount}</div>` : '';
     const iconChar = p.icon ? p.icon : (isActive ? 'rocket' : 'folder');
     
     // Codicon representation
@@ -505,11 +499,9 @@ function getHtml(projects, activePath, position, showRecent, recentProjects, sta
           </div>
           <div class="tab-info">
             <span class="tab-name">${shortcutHtml}${safeName}</span>
-            <span class="tab-path">${shortPath}</span>
           </div>
         </div>
         <div class="tab-actions">
-          ${badgeHtml}
           <span class="tab-btn edit-btn" data-action="edit" data-path="${escapeHtml(p.path)}" title="Edit Tab">✎</span>
           <span class="tab-btn delete-btn" data-action="remove" data-path="${escapeHtml(p.path)}" title="Unpin">✕</span>
         </div>
@@ -537,29 +529,6 @@ function getHtml(projects, activePath, position, showRecent, recentProjects, sta
         <div>Open a project and click<br><strong>Pin Current Project</strong></div>
       </div>`;
   }
-
-  let recentHtml = '';
-  if (showRecent && recentProjects && recentProjects.length > 0) {
-      recentHtml += `<div class="group-header recent-header">Recent Projects</div>`;
-      recentHtml += recentProjects.slice(0, 4).map(p => {
-          const isActive = p.path === activePath;
-          const safeName = escapeHtml(p.name);
-          return `
-            <div class="tab recent-tab ${isActive ? 'active' : ''}" data-path="${escapeHtml(p.path)}" data-action="switch" title="${escapeHtml(p.path)}">
-               <div class="tab-left">
-                 <div class="icon-wrap"><i class="codicon codicon-history"></i></div>
-                 <div class="tab-info">
-                   <span class="tab-name">${safeName}</span>
-                   <span class="tab-path">Unpinned</span>
-                 </div>
-               </div>
-            </div>`;
-      }).join('');
-  }
-
-  // VS Code provides native codicons via its extension webview api automatically! We just insert the URI link or use standard classes if we supply them. Wait, since VSCode 1.42+ standard codicons need to be enabled via CSS or they might just work depending on VSCode version. To ensure safety without loading external codicons toolkit from `node_modules`, we'll just fall back to standard emoji if codicon classes aren't styled. Or we stick to native styled letters/emojis.
-  // Actually, webviews don't automatically load native codicons unless they are bundled, but we'll try `<i class="codicon codicon-xxx"></i>` because it's a standard! Oh wait, `codicon` CSS is not injected by default in standard Webviews unless requested via `webview.html` link. To be safe, let's use an inline emoji mapper for the most common ones or keep it text! 
-  // For the sake of aesthetic, let's do a fallback style!
 
   return `<!DOCTYPE html>
 <html>
@@ -612,16 +581,6 @@ function getHtml(projects, activePath, position, showRecent, recentProjects, sta
   }
   .add-btn:hover { opacity: 0.85; }
 
-  .pos {
-    width: 70px;
-    padding: 6px;
-    border: 1px solid var(--vscode-dropdown-border, transparent);
-    border-radius: 5px;
-    background: var(--vscode-dropdown-background);
-    color: var(--vscode-dropdown-foreground);
-    font: inherit;
-  }
-
   .divider {
     height: 1px;
     background: var(--vscode-panel-border);
@@ -643,8 +602,7 @@ function getHtml(projects, activePath, position, showRecent, recentProjects, sta
     min-height: 0;
   }
 
-  .pos-left .tabs,
-  .pos-right .tabs {
+  .pos-left .tabs {
     flex-direction: column;
     overflow-y: auto;
   }
@@ -656,11 +614,6 @@ function getHtml(projects, activePath, position, showRecent, recentProjects, sta
     font-weight: 700;
     color: var(--vscode-descriptionForeground);
     letter-spacing: 0.5px;
-  }
-  
-  .recent-header {
-    border-top: 1px dashed var(--vscode-panel-border);
-    padding-top: 12px;
   }
 
   .tab {
@@ -688,8 +641,7 @@ function getHtml(projects, activePath, position, showRecent, recentProjects, sta
     border-color: var(--vscode-focusBorder);
   }
 
-  .pos-left .tab.active,
-  .pos-right .tab.active { border-left-width: 2px; border-left-color: #4ec9b0; }
+  .pos-left .tab.active { border-left-width: 2px; border-left-color: #4ec9b0; }
 
   .tab-left {
     display: flex;
@@ -733,33 +685,12 @@ function getHtml(projects, activePath, position, showRecent, recentProjects, sta
     margin-right: 2px;
   }
   .tab.active .shortcut-n { opacity: 0.8; }
-  .tab-path {
-    font-size: 10px;
-    opacity: 0.55;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .tab.active .tab-path { opacity: 0.8; }
-  
-  .recent-tab .tab-name { font-style: italic; opacity: 0.8;}
 
   .tab-actions {
     display: flex;
     align-items: center;
     gap: 4px;
   }
-
-  .launch-badge {
-    background: var(--vscode-badge-background);
-    color: var(--vscode-badge-foreground);
-    font-size: 9px;
-    font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 10px;
-    opacity: 0.6;
-  }
-  .tab:hover .launch-badge { opacity: 1; }
 
   .tab-btn {
     font-size: 11px;
@@ -771,52 +702,10 @@ function getHtml(projects, activePath, position, showRecent, recentProjects, sta
     transition: opacity 0.1s, background 0.1s;
     user-select: none;
   }
-  .git-badge {
-    font-size: 9.5px;
-    opacity: 0.65;
-    margin-left: 6px;
-    font-weight: normal;
-    background: var(--vscode-badge-background);
-    color: var(--vscode-badge-foreground);
-    padding: 1px 4px;
-    border-radius: 3px;
-    white-space: nowrap;
-  }
   .tab:hover .tab-btn { opacity: 0.5; }
   .tab-btn:hover { opacity: 1 !important; }
   .delete-btn:hover { background: rgba(255,80,80,0.2); color: #ff6b6b; }
   .edit-btn:hover { background: rgba(80, 180, 255, 0.2); color: #329dfa; }
-  
-  .footer {
-    padding: 12px 10px;
-    border-top: 1px solid var(--vscode-panel-border);
-    margin-top: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .donate-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 8px;
-    background: #FFDD00;
-    color: #000000;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 11px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
-  .donate-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(255, 221, 0, 0.3);
-  }
-  .donate-btn-icon { font-size: 14px; }
 
   .empty {
     text-align: center;
@@ -833,23 +722,12 @@ function getHtml(projects, activePath, position, showRecent, recentProjects, sta
   <div class="toolbar">
     <button class="add-btn" data-action="addCurrent" title="Pin current workspace">＋ Pin Current</button>
     <button class="add-btn" data-action="addAny" title="Add another project folder">＋ Add Project</button>
-    <button class="add-btn" style="flex: 0 0 auto; padding: 7px 10px;" data-action="openTerminal" title="Open Terminal">&gt;_</button>
-    <select class="pos" id="posSelect">
-      <option value="left" ${position === 'left' ? 'selected' : ''}>Left</option>
-      <option value="right" ${position === 'right' ? 'selected' : ''}>Right</option>
-    </select>
   </div>
   <div class="divider"></div>
-  <div class="shell pos-${position}">
+  <div class="shell pos-left">
     <div class="tabs">
       ${contentHtml}
-      ${recentHtml}
     </div>
-  </div>
-  <div class="footer">
-    <a href="https://github.com/sponsors/spinykiller" class="donate-btn">
-      <span class="donate-btn-icon">❤️</span> Support Developer
-    </a>
   </div>
 <script>
   const vscode = acquireVsCodeApi();
@@ -862,16 +740,10 @@ function getHtml(projects, activePath, position, showRecent, recentProjects, sta
     switch (action) {
       case 'addCurrent': vscode.postMessage({ command: 'addCurrent' }); break;
       case 'addAny': vscode.postMessage({ command: 'addAny' }); break;
-      case 'openTerminal': vscode.postMessage({ command: 'openTerminal' }); break;
       case 'switch': if (path) vscode.postMessage({ command: 'switchProject', path }); break;
       case 'edit': ev.stopPropagation(); if (path) vscode.postMessage({ command: 'editProject', path }); break;
       case 'remove': ev.stopPropagation(); if (path) vscode.postMessage({ command: 'removeProject', path }); break;
     }
-  });
-
-  const posSel = document.getElementById('posSelect');
-  if (posSel) posSel.addEventListener('change', (e) => {
-    vscode.postMessage({ command: 'setPosition', position: e.target.value });
   });
 
   document.addEventListener('dragstart', (ev) => {
@@ -896,24 +768,6 @@ function getHtml(projects, activePath, position, showRecent, recentProjects, sta
   });
   document.addEventListener('dragend', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('dragging'));
-  });
-
-  window.addEventListener('message', event => {
-    const message = event.data;
-    if (message.command === 'gitState') {
-      document.querySelectorAll('.tab').forEach(tab => {
-        if (tab.dataset.path !== message.path) return;
-        const nameNode = tab.querySelector('.tab-name');
-        if (nameNode && !nameNode.querySelector('.git-badge')) {
-          const badge = document.createElement('span');
-          badge.className = 'git-badge';
-          const changesHtml = message.state.changes > 0 ? \` <span style="color:var(--vscode-minimapGutter-modifiedBackground, #e2c08d)">*\${message.state.changes}</span>\` : '';
-          badge.innerHTML = \`⎇ \${message.state.branch}\${changesHtml}\`;
-          badge.title = \`Git Branch: \${message.state.branch}\`;
-          nameNode.appendChild(badge);
-        }
-      });
-    }
   });
 </script>
 </body>
