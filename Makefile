@@ -6,15 +6,15 @@ unexport FORCE_COLOR
 endif
 
 test:
-	npm test
+	pnpm test
 
 check:
-	npm run check
+	pnpm run check
 
 # Build the extension into a .vsix package
 build:
 	@echo "Packaging extension..."
-	npm run package
+	pnpm run package
 
 # Install into VSCodium (all local profiles).
 # Do not use `code` here: on this machine it is aliased to codium only.

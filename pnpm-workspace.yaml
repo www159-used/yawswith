@@ -1,0 +1,5 @@
+allowBuilds:
+  '@vscode/vsce-sign': true
+  fsevents: true
+minimumReleaseAgeExclude:
+  - jsdom@30.1.3

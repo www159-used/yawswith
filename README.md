@@ -5,9 +5,9 @@ A local VS Code extension for switching pinned projects from the sidebar, status
 ## Install
 
 ```bash
-npm ci
-npm test
-npm run package
+pnpm install --frozen-lockfile
+pnpm test
+pnpm run package
 # Then: Command Palette → Extensions: Install from VSIX...
 ```
 
@@ -21,13 +21,13 @@ For local installation into VSCodium (including its local profiles) on this Mac,
 | `make install` | Build and install into VSCodium profiles |
 | `make clean` | Remove compiled output and VSIX files |
 
-`@vscode/vsce` and the `vscode:prepublish` npm script are still needed for VSIX packaging: `vsce package` runs that script to compile the extension before creating the package.
+`@vscode/vsce` and the `vscode:prepublish` script are still needed for VSIX packaging: `vsce package` runs that script to compile the extension before creating the package.
 
-Use Node.js 24 LTS (24.15 or newer) for development. The extension still supports VS Code 1.75 and newer.
+Use Node.js 24 LTS (24.15 or newer) and pnpm 11.20.0 for development. The pnpm version is pinned in `package.json`; commit `pnpm-lock.yaml` when dependencies change. The extension still supports VS Code 1.75 and newer.
 
 ## Development
 
-The extension is written in TypeScript with strict type checking, and its sidebar uses SolidJS. Run `npm run check` to check both the extension and UI, or `npm test` to compile and run tests. For development, run `npm run watch` for the extension and `npm run watch:webview` in another terminal for the sidebar. `make test` and `make build` use the same npm scripts. Packaging compiles both parts automatically.
+The extension is written in TypeScript with strict type checking, and its sidebar uses SolidJS. Run `pnpm run check` to check both the extension and UI, or `pnpm test` to compile and run tests. For development, run `pnpm run watch` for the extension and `pnpm run watch:webview` in another terminal for the sidebar. `make test` and `make build` use the same package scripts. Packaging compiles both parts automatically.
 
 - `src/extension.ts` registers commands and connects the views.
 - `src/projectRepository.ts` owns profile migration, settings mirroring, and change notifications; `src/sharedStore.ts` handles the existing `state.json` format and file watching.

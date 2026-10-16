@@ -10,6 +10,7 @@ coverage/
 # Unused upstream demo assets, retained locally
 /assets/
 
-# Local system files and npm logs
+# Local system files and package manager logs
 .DS_Store
 npm-debug.log*
+pnpm-debug.log*

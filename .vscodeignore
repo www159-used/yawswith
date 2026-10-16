@@ -12,7 +12,8 @@ out/**/*.test.js
 out/testSupport/**
 tsconfig*.json
 vite.config.mts
-package-lock.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
 Makefile
 .gitignore
 **/.DS_Store

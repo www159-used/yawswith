@@ -3,6 +3,7 @@
   "displayName": "Yawswith",
   "description": "Switch pinned projects from the sidebar, status bar, or keyboard.",
   "version": "4.0.5",
+  "packageManager": "pnpm@11.20.0",
   "publisher": "www159-used",
   "icon": "icon.png",
   "license": "AGPL-3.0-only",
@@ -242,11 +243,11 @@
     "vite-plugin-solid": "2.11.14"
   },
   "scripts": {
-    "compile": "npm run clean && tsc -p . && tsc -p tsconfig.webview.json && vite build",
+    "compile": "pnpm run clean && tsc -p . && tsc -p tsconfig.webview.json && vite build",
     "check": "tsc -p . --noEmit && tsc -p tsconfig.webview.json",
     "watch": "tsc -p . --watch",
-    "test": "npm run compile && node --test out/*.test.js",
-    "vscode:prepublish": "npm run compile",
+    "test": "pnpm run compile && node --test out/*.test.js",
+    "vscode:prepublish": "pnpm run compile",
     "package": "vsce package --no-dependencies",
     "clean": "node -e \"require('node:fs').rmSync('out', { recursive: true, force: true })\"",
     "watch:webview": "vite build --watch"
