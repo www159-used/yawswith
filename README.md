@@ -33,6 +33,7 @@ The extension is written in TypeScript with strict type checking, and its sideba
 - `src/projectRepository.ts` owns profile migration, settings mirroring, and change notifications; `src/sharedStore.ts` handles the existing `state.json` format and file watching.
 - `src/projects.ts` handles project actions; `src/sidebar.ts` and `src/views.ts` render the sidebar, tree, and status bar.
 - `src/webview/` contains the Solid components (`App`, `ProjectList`, and `ProjectItem`), the HTML shell, and typed messages. Sidebar styles live in `media/sidebar.css`.
+- `src/webview/hooks/` provides `useSidebar` for shared state and project actions, `useProjectGroups` for grouping, and `useProjectDrag` for drag-and-drop. A single `SidebarProvider` owns the message listener and state; components consume it through context. Hooks run inside the Solid component tree. Storage, commands, and native VS Code views remain in the extension host.
 
 Compiled extension code goes into `out/`; Vite bundles Solid and the sidebar into `out/webview-ui/sidebar.js`. The sidebar loads local assets once, signals when it is ready, and receives subsequent state updates through messages. Rows are reconciled by project path to preserve focus and scroll position during updates.
 

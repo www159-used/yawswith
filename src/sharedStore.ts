@@ -166,6 +166,7 @@ export class SharedStore {
   }
 
   setProjects(projects: Project[]) {
+    this.load();
     this.data.projects = Array.isArray(projects) ? projects : [];
     this.save();
   }
@@ -180,6 +181,7 @@ export class SharedStore {
 
   trackLaunch(projectPath: string) {
     if (!projectPath) return;
+    this.load();
     if (!this.data.stats[projectPath]) this.data.stats[projectPath] = { count: 0, last: 0 };
     this.data.stats[projectPath].count++;
     this.data.stats[projectPath].last = Date.now();
@@ -188,15 +190,17 @@ export class SharedStore {
 
   trackRecent(name: string, projectPath: string) {
     if (!projectPath) return;
+    this.load();
     this.data.recents = mergeRecents([{ name, path: projectPath }], this.data.recents);
     this.save();
   }
 
   /**
-   * One-time union of profile-local leftovers into the shared file.
-   * After this, the file is the source of truth.
+   * Bootstrap once per application, never once per profile. An existing file,
+   * including an empty project list, is authoritative over legacy settings.
    */
   hydrateFromProfile({ projects, stats, recents }: Partial<SharedState> = {}) {
+    if (fs.existsSync(this.filePath)) return this.load();
     this.data.projects = unionProjects(this.data.projects, projects);
     this.data.stats = mergeStats(this.data.stats, stats);
     this.data.recents = mergeRecents(this.data.recents, recents);

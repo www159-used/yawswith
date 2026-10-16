@@ -17,22 +17,19 @@ export class ProjectRepository implements vscode.Disposable {
   }
 
   async initialize(): Promise<void> {
-    if (!this.context.globalState.get<boolean>('yawswith.sharedStoreMigrated')) {
-      const config = vscode.workspace.getConfiguration('projectTabs');
-      const inspection = config.inspect<unknown>('projects');
-      const projects = [
-        config.get<unknown>('projects'),
-        inspection?.globalValue,
-        inspection?.workspaceValue,
-        collectProjectsFromEditorSettings(this.context.globalStorageUri.fsPath)
-      ].reduce<Project[]>((all, value) => unionProjects(all, readProjects(value)), []);
-      this.store.hydrateFromProfile({
-        projects,
-        stats: this.context.globalState.get<ProjectStats>('yawswith.projectStats') || {},
-        recents: this.context.globalState.get<RecentProject[]>('yawswith.recentProjects') || []
-      });
-      await this.context.globalState.update('yawswith.sharedStoreMigrated', true);
-    }
+    const config = vscode.workspace.getConfiguration('projectTabs');
+    const inspection = config.inspect<unknown>('projects');
+    const projects = [
+      config.get<unknown>('projects'),
+      inspection?.globalValue,
+      inspection?.workspaceValue,
+      collectProjectsFromEditorSettings(this.context.globalStorageUri.fsPath)
+    ].reduce<Project[]>((all, value) => unionProjects(all, readProjects(value)), []);
+    this.store.hydrateFromProfile({
+      projects,
+      stats: this.context.globalState.get<ProjectStats>('yawswith.projectStats') || {},
+      recents: this.context.globalState.get<RecentProject[]>('yawswith.recentProjects') || []
+    });
     await this.mirrorSettings();
     this.disposables.push(
       this.store.watch(() => {
@@ -65,6 +62,9 @@ export class ProjectRepository implements vscode.Disposable {
 
   trackLaunch(projectPath: string): void {
     this.store.trackLaunch(projectPath);
+    // Recording a launch also reloads edits from other windows before saving.
+    this.changes.fire();
+    void this.mirrorSettings().catch(reportError);
   }
 
   private mirrorSettings(): Promise<void> {

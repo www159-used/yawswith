@@ -65,7 +65,20 @@ test('two profiles writing the same SharedStore can see each other', (t) => {
   assert.equal(profileB.getRecents()[0].path, '/a/frontend');
 });
 
-test('hydrateFromProfile unions leftovers without dropping shared items', (t) => {
+test('opening a project in a stale window cannot restore pins removed by another window', t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'yawswith-stale-window-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const first = new SharedStore(path.join(dir, 'state.json'));
+  first.setProjects([{ name: 'Removed', path: '/removed' }]);
+  const other = new SharedStore(first.filePath);
+  other.load();
+  first.setProjects([]);
+  other.trackLaunch('/removed');
+  assert.deepEqual(first.load().projects, []);
+  assert.equal(first.getStats()['/removed'].count, 1);
+});
+
+test('hydrateFromProfile preserves an existing shared file over stale profile data', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'yawswith-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const store = new SharedStore(path.join(dir, 'state.json'));
@@ -81,9 +94,9 @@ test('hydrateFromProfile unions leftovers without dropping shared items', (t) =>
   });
 
   const paths = store.getProjects().map(p => p.path);
-  assert.deepEqual(paths, ['/shared', '/work']);
+  assert.deepEqual(paths, ['/shared']);
   assert.equal(store.getProjects()[0].name, 'shared');
-  assert.equal(store.getStats()['/work'].count, 3);
+  assert.deepEqual(store.getStats(), {});
 });
 
 test('unionProjects keeps first-seen metadata and appends new paths', () => {

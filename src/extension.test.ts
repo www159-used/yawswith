@@ -20,7 +20,6 @@ test('activation migrates legacy data, registers commands, and keeps all views i
   editor.sendMessage({ command: 'ready' });
   const manifest = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
   for (const command of manifest.contributes.commands) assert.ok(editor.commands.has(command.command));
-  assert.ok(editor.state.get('yawswith.sharedStoreMigrated'));
   assert.equal(editor.posted.slice(-1)[0].projects[0].name, 'Legacy');
   const shell = editor.webview.html;
   const stored = new SharedStore(join(dir, 'state.json'));
@@ -115,6 +114,22 @@ test('already migrated profiles keep deletions when the extension restarts', asy
   assert.deepEqual(editor.settings.projects, []);
   assert.deepEqual(editor.posted.slice(-1)[0].projects, []);
   assert.deepEqual(editor.errors, []);
+});
+
+test('switching to a profile for the first time does not restore a removed pin', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'yawswith-profile-switch-'));
+  const projects = [{ name: 'Removed', path: '/removed' }, { name: 'Kept', path: '/kept' }];
+  const first = createEditor(join(root, 'User/globalStorage/www159-used.yawswith'), projects);
+  const next = createEditor(join(root, 'User/profiles/work/globalStorage/www159-used.yawswith'), projects);
+  t.after(() => { first.dispose(); next.dispose(); rmSync(root, { recursive: true, force: true }); });
+  await first.activate();
+  await first.commands.get('yawswith.removeProject')?.();
+  first.dispose();
+  await next.activate();
+  next.resolveSidebar();
+  next.sendMessage({ command: 'ready' });
+  assert.deepEqual(next.posted.at(-1)?.projects, [projects[1]]);
+  assert.deepEqual(next.settings.projects, [projects[1]]);
 });
 
 test('sidebar sends current state after ready and when a hidden view becomes visible', async t => {

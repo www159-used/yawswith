@@ -1,24 +1,20 @@
-import { createMemo, For, Show } from 'solid-js';
+import { For, Show } from 'solid-js';
 import type { Project } from '../model';
-import type { ProjectAction } from './messages';
 import { ProjectItem } from './ProjectItem';
+import { useSidebar } from './hooks/useSidebar';
+import { useProjectGroups } from './hooks/useProjectGroups';
 
-export function ProjectList(props: {
-  projects: Project[];
-  activePath: string | null;
-  onAction(message: ProjectAction): void;
-}) {
-  const groups = createMemo(() => [...new Set(props.projects.flatMap(project => project.group ? [project.group] : []))]);
-  const ungrouped = createMemo(() => props.projects.filter(project => !project.group));
+export function ProjectList() {
+  const { state } = useSidebar();
+  const { groups, ungrouped, inGroup } = useProjectGroups();
   const item = (project: Project) => <ProjectItem
     project={project}
-    index={props.projects.indexOf(project)}
-    active={project.path === props.activePath}
-    onAction={props.onAction}
+    index={state.projects.indexOf(project)}
+    active={project.path === state.activePath}
   />;
 
   return <div class="tabs">
-    <Show when={props.projects.length} fallback={
+    <Show when={state.projects.length} fallback={
       <div class="empty">
         <div class="empty-icon">🚀</div>
         <div>No projects pinned yet.</div>
@@ -27,7 +23,7 @@ export function ProjectList(props: {
     }>
       <For each={groups()}>{group => <>
         <div class="group-header">{group}</div>
-        <For each={props.projects.filter(project => project.group === group)}>{item}</For>
+        <For each={inGroup(group)}>{item}</For>
       </>}</For>
       <Show when={groups().length > 0 && ungrouped().length > 0}><div class="group-header">Pinned</div></Show>
       <For each={ungrouped()}>{item}</For>
