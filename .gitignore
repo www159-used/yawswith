@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build and test output
+out/
+*.vsix
+*.tsbuildinfo
+coverage/
+
+# Unused upstream demo assets, retained locally
+/assets/
+
+# Local system files and npm logs
+.DS_Store
+npm-debug.log*

@@ -1,188 +1,166 @@
 {
-  "name": "snapswitch-vscode",
-  "displayName": "SnapSwitch Projects",
-  "description": "Switch between multiple VS Code project windows instantly — one click or Cmd+1-9. No more 3-click context switching.",
+  "name": "yawswith",
+  "displayName": "Yawswith",
+  "description": "Switch pinned projects from the sidebar, status bar, or keyboard.",
   "version": "4.0.5",
-  "publisher": "JYashSakariyaJain",
+  "publisher": "www159-used",
   "icon": "icon.png",
-  "galleryBanner": {
-    "color": "#1e1e2e",
-    "theme": "dark"
-  },
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "https://github.com/spinykiller/snapswitch"
+    "url": "https://github.com/www159-used/yawswith.git"
   },
   "bugs": {
-    "url": "https://github.com/spinykiller/snapswitch/issues"
+    "url": "https://github.com/www159-used/yawswith/issues"
   },
-  "homepage": "https://github.com/spinykiller/snapswitch#readme",
+  "homepage": "https://github.com/www159-used/yawswith#readme",
   "engines": {
     "vscode": "^1.75.0"
   },
   "categories": [
-    "Other",
-    "Keymaps",
-    "Snippets"
+    "Other"
   ],
   "keywords": [
     "project",
-    "switch",
     "workspace",
-    "tabs",
-    "snapswitch",
-    "manager",
-    "context switching",
-    "multi-project",
-    "productivity",
-    "window",
-    "mac"
+    "switch",
+    "yawswith"
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onView:snapswitch.sidebarView",
-    "onView:snapswitch.projectsTree",
-    "onCommand:snapswitch.switchProject",
-    "onCommand:snapswitch.focus",
-    "onCommand:snapswitch.openProject"
+    "onView:yawswith.sidebarView",
+    "onView:yawswith.projectsTree",
+    "onCommand:yawswith.switchProject",
+    "onCommand:yawswith.focus",
+    "onCommand:yawswith.openProject"
   ],
-  "main": "./src/extension.js",
+  "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "snapswitchContainer",
-          "title": "SnapSwitch",
+          "id": "yawswithContainer",
+          "title": "Yawswith",
           "icon": "activity_icon.svg"
         }
       ]
     },
     "views": {
-      "snapswitchContainer": [
+      "yawswithContainer": [
         {
           "type": "webview",
-          "id": "snapswitch.sidebarView",
+          "id": "yawswith.sidebarView",
           "name": "Projects"
         },
         {
           "type": "tree",
-          "id": "snapswitch.projectsTree",
+          "id": "yawswith.projectsTree",
           "name": "Pinned Projects"
         }
       ]
     },
     "commands": [
       {
-        "command": "snapswitch.addProject",
-        "title": "SnapSwitch: Pin Current Project"
+        "command": "yawswith.addProject",
+        "title": "Yawswith: Pin Current Project"
       },
       {
-        "command": "snapswitch.switchProject",
-        "title": "SnapSwitch: Switch Project"
+        "command": "yawswith.switchProject",
+        "title": "Yawswith: Switch Project"
       },
       {
-        "command": "snapswitch.focus",
-        "title": "SnapSwitch: Show Dashboard"
+        "command": "yawswith.focus",
+        "title": "Yawswith: Show Dashboard"
       },
       {
-        "command": "snapswitch.openProject",
-        "title": "SnapSwitch: Open Project"
+        "command": "yawswith.openProject",
+        "title": "Yawswith: Open Project"
       },
       {
-        "command": "snapswitch.openProject1",
-        "title": "SnapSwitch: Open Project 1"
+        "command": "yawswith.openProject1",
+        "title": "Yawswith: Open Project 1"
       },
       {
-        "command": "snapswitch.openProject2",
-        "title": "SnapSwitch: Open Project 2"
+        "command": "yawswith.openProject2",
+        "title": "Yawswith: Open Project 2"
       },
       {
-        "command": "snapswitch.openProject3",
-        "title": "SnapSwitch: Open Project 3"
+        "command": "yawswith.openProject3",
+        "title": "Yawswith: Open Project 3"
       },
       {
-        "command": "snapswitch.openProject4",
-        "title": "SnapSwitch: Open Project 4"
+        "command": "yawswith.openProject4",
+        "title": "Yawswith: Open Project 4"
       },
       {
-        "command": "snapswitch.openProject5",
-        "title": "SnapSwitch: Open Project 5"
+        "command": "yawswith.openProject5",
+        "title": "Yawswith: Open Project 5"
       },
       {
-        "command": "snapswitch.openProject6",
-        "title": "SnapSwitch: Open Project 6"
+        "command": "yawswith.openProject6",
+        "title": "Yawswith: Open Project 6"
       },
       {
-        "command": "snapswitch.openProject7",
-        "title": "SnapSwitch: Open Project 7"
+        "command": "yawswith.openProject7",
+        "title": "Yawswith: Open Project 7"
       },
       {
-        "command": "snapswitch.openProject8",
-        "title": "SnapSwitch: Open Project 8"
+        "command": "yawswith.openProject8",
+        "title": "Yawswith: Open Project 8"
       },
       {
-        "command": "snapswitch.openProject9",
-        "title": "SnapSwitch: Open Project 9"
+        "command": "yawswith.openProject9",
+        "title": "Yawswith: Open Project 9"
       }
     ],
     "keybindings": [
       {
-        "command": "snapswitch.openProject1",
+        "command": "yawswith.openProject1",
         "key": "cmd+1",
-        "mac": "cmd+1",
-        "when": "editorTextFocus || !editorTextFocus"
+        "mac": "cmd+1"
       },
       {
-        "command": "snapswitch.openProject2",
+        "command": "yawswith.openProject2",
         "key": "cmd+2",
-        "mac": "cmd+2",
-        "when": "editorTextFocus || !editorTextFocus"
+        "mac": "cmd+2"
       },
       {
-        "command": "snapswitch.openProject3",
+        "command": "yawswith.openProject3",
         "key": "cmd+3",
-        "mac": "cmd+3",
-        "when": "editorTextFocus || !editorTextFocus"
+        "mac": "cmd+3"
       },
       {
-        "command": "snapswitch.openProject4",
+        "command": "yawswith.openProject4",
         "key": "cmd+4",
-        "mac": "cmd+4",
-        "when": "editorTextFocus || !editorTextFocus"
+        "mac": "cmd+4"
       },
       {
-        "command": "snapswitch.openProject5",
+        "command": "yawswith.openProject5",
         "key": "cmd+5",
-        "mac": "cmd+5",
-        "when": "editorTextFocus || !editorTextFocus"
+        "mac": "cmd+5"
       },
       {
-        "command": "snapswitch.openProject6",
+        "command": "yawswith.openProject6",
         "key": "cmd+6",
-        "mac": "cmd+6",
-        "when": "editorTextFocus || !editorTextFocus"
+        "mac": "cmd+6"
       },
       {
-        "command": "snapswitch.openProject7",
+        "command": "yawswith.openProject7",
         "key": "cmd+7",
-        "mac": "cmd+7",
-        "when": "editorTextFocus || !editorTextFocus"
+        "mac": "cmd+7"
       },
       {
-        "command": "snapswitch.openProject8",
+        "command": "yawswith.openProject8",
         "key": "cmd+8",
-        "mac": "cmd+8",
-        "when": "editorTextFocus || !editorTextFocus"
+        "mac": "cmd+8"
       },
       {
-        "command": "snapswitch.openProject9",
+        "command": "yawswith.openProject9",
         "key": "cmd+9",
-        "mac": "cmd+9",
-        "when": "editorTextFocus || !editorTextFocus"
+        "mac": "cmd+9"
       },
       {
-        "command": "snapswitch.switchProject",
+        "command": "yawswith.switchProject",
         "key": "ctrl+alt+p",
         "mac": "cmd+alt+p"
       }
@@ -190,29 +168,29 @@
     "menus": {
       "view/title": [
         {
-          "command": "snapswitch.switchProject",
-          "when": "view == snapswitch.sidebarView",
+          "command": "yawswith.switchProject",
+          "when": "view == yawswith.sidebarView",
           "group": "navigation"
         },
         {
-          "command": "snapswitch.addProject",
-          "when": "view == snapswitch.sidebarView",
+          "command": "yawswith.addProject",
+          "when": "view == yawswith.sidebarView",
           "group": "navigation"
         },
         {
-          "command": "snapswitch.addProject",
-          "when": "view == snapswitch.projectsTree",
+          "command": "yawswith.addProject",
+          "when": "view == yawswith.projectsTree",
           "group": "navigation"
         },
         {
-          "command": "snapswitch.switchProject",
-          "when": "view == snapswitch.projectsTree",
+          "command": "yawswith.switchProject",
+          "when": "view == yawswith.projectsTree",
           "group": "navigation"
         }
       ]
     },
     "configuration": {
-      "title": "SnapSwitch",
+      "title": "Yawswith",
       "properties": {
         "projectTabs.projects": {
           "type": "array",
@@ -243,20 +221,6 @@
             }
           }
         },
-        "projectTabs.showRecentProjects": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show an automatically collected list of recently opened projects in the SnapSwitch view."
-        },
-        "projectTabs.position": {
-          "type": "string",
-          "default": "left",
-          "enum": [
-            "left",
-            "right"
-          ],
-          "description": "Where pinned projects should render inside the SnapSwitch view."
-        },
         "projectTabs.statusBarMaxItems": {
           "type": "number",
           "default": 6,
@@ -266,5 +230,28 @@
         }
       }
     }
+  },
+  "devDependencies": {
+    "@types/jsdom": "30.0.0",
+    "@types/node": "22.20.5",
+    "@types/vscode": "1.75.0",
+    "@vscode/vsce": "4.0.0",
+    "jsdom": "30.1.3",
+    "typescript": "5.9.3",
+    "vite": "8.3.4",
+    "vite-plugin-solid": "2.11.14"
+  },
+  "scripts": {
+    "compile": "npm run clean && tsc -p . && tsc -p tsconfig.webview.json && vite build",
+    "check": "tsc -p . --noEmit && tsc -p tsconfig.webview.json",
+    "watch": "tsc -p . --watch",
+    "test": "npm run compile && node --test out/*.test.js",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package --no-dependencies",
+    "clean": "node -e \"require('node:fs').rmSync('out', { recursive: true, force: true })\"",
+    "watch:webview": "vite build --watch"
+  },
+  "dependencies": {
+    "solid-js": "1.9.17"
   }
 }

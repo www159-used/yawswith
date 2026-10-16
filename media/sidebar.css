@@ -1,0 +1,202 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Fallback codicon styles (if you aren't importing codicon css properly) */
+.codicon-folder::before { content: "📁"; }
+.codicon-rocket::before { content: "🚀"; }
+.codicon-history::before { content: "⏳"; }
+.codicon-star::before { content: "⭐"; }
+.codicon-code::before { content: "💻"; }
+.codicon-browser::before { content: "🌐"; }
+.codicon { font-style: normal; font-size: 14px; }
+
+body {
+  font-family: var(--vscode-font-family);
+  font-size: 13px;
+  color: var(--vscode-foreground);
+  background: transparent;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 10px 8px;
+}
+
+.add-btn {
+  flex: 1;
+  padding: 7px 12px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  justify-content: center;
+  transition: opacity 0.15s;
+}
+.add-btn:hover { opacity: 0.85; }
+
+.divider {
+  height: 1px;
+  background: var(--vscode-panel-border);
+  margin: 0 10px 8px;
+}
+
+.shell {
+  flex: 1;
+  padding: 0 8px 8px;
+  min-height: 0;
+  display: flex;
+}
+
+.tabs {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pos-left .tabs {
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.group-header {
+  margin: 12px 2px 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--vscode-descriptionForeground);
+  letter-spacing: 0.5px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent; /* No border until active or hover */
+  transition: all 0.15s;
+  background: transparent;
+  min-width: 0;
+}
+.tab.dragging {
+  opacity: 0.4;
+  border: 1px dashed var(--vscode-focusBorder);
+}
+.tab:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+.tab.active {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+  border-color: var(--vscode-focusBorder);
+}
+
+.pos-left .tab.active { border-left-width: 2px; border-left-color: #4ec9b0; }
+
+.tab-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  opacity: 0.8;
+}
+.icon-wrap.active {
+  background: rgba(78, 201, 176, 0.2);
+  border-color: #4ec9b0;
+  opacity: 1;
+}
+
+.tab-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tab-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shortcut-n {
+  opacity: 0.5;
+  font-weight: 400;
+  margin-right: 2px;
+}
+.tab.active .shortcut-n { opacity: 0.8; }
+
+.tab-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tab-btn {
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 3px 5px;
+  border-radius: 4px;
+  opacity: 0;
+  flex-shrink: 0;
+  color: var(--vscode-foreground);
+  transition: opacity 0.1s, background 0.1s;
+  user-select: none;
+}
+.tab:hover .tab-btn { opacity: 0.5; }
+.tab:focus-within .tab-btn { opacity: 0.5; }
+.tab-btn:hover { opacity: 1 !important; }
+.delete-btn:hover { background: rgba(255,80,80,0.2); color: #ff6b6b; }
+.edit-btn:hover { background: rgba(80, 180, 255, 0.2); color: #329dfa; }
+
+.empty {
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.empty-icon { font-size: 32px; margin-bottom: 12px; }

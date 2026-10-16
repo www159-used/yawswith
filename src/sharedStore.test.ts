@@ -1,16 +1,17 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const {
+import { test } from 'node:test';
+import * as assert from 'node:assert/strict';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import {
   SharedStore,
+  createSharedStore,
   toApplicationGlobalStorage,
   collectProjectsFromEditorSettings,
   unionProjects,
   mergeStats,
   mergeRecents
-} = require('./sharedStore');
+} from './sharedStore';
 
 test('profile-scoped globalStorage rewrites to application storage', () => {
   const profilePath = path.join(
@@ -18,14 +19,14 @@ test('profile-scoped globalStorage rewrites to application storage', () => {
     'profiles',
     'Work-abc',
     'globalStorage',
-    'publisher.snapswitch-vscode'
+    'publisher.yawswith-vscode'
   );
   assert.equal(
     toApplicationGlobalStorage(profilePath),
     path.join(
       '/Users/me/Library/Application Support/Cursor/User',
       'globalStorage',
-      'publisher.snapswitch-vscode'
+      'publisher.yawswith-vscode'
     )
   );
 });
@@ -34,20 +35,21 @@ test('default-profile globalStorage is already shared', () => {
   const defaultPath = path.join(
     '/Users/me/Library/Application Support/Cursor/User',
     'globalStorage',
-    'publisher.snapswitch-vscode'
+    'publisher.yawswith-vscode'
   );
   assert.equal(toApplicationGlobalStorage(defaultPath), defaultPath);
 });
 
-test('isolated profile maps cannot see each other (current bug)', () => {
-  const profileA = {};
-  const profileB = {};
-  profileA.projects = [{ name: 'frontend', path: '/a/frontend' }];
-  assert.deepEqual(profileB.projects || [], []);
+test('missing state starts empty', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'yawswith-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const store = new SharedStore(path.join(dir, 'state.json'));
+  assert.deepEqual(store.load(), { version: 1, projects: [], stats: {}, recents: [] });
 });
 
-test('two profiles writing the same SharedStore can see each other', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'snapswitch-'));
+test('two profiles writing the same SharedStore can see each other', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'yawswith-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const file = path.join(dir, 'state.json');
 
   const profileA = new SharedStore(file);
@@ -63,8 +65,9 @@ test('two profiles writing the same SharedStore can see each other', () => {
   assert.equal(profileB.getRecents()[0].path, '/a/frontend');
 });
 
-test('hydrateFromProfile unions leftovers without dropping shared items', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'snapswitch-'));
+test('hydrateFromProfile unions leftovers without dropping shared items', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'yawswith-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const store = new SharedStore(path.join(dir, 'state.json'));
   store.load();
   store.setProjects([{ name: 'shared', path: '/shared' }]);
@@ -101,10 +104,11 @@ test('mergeStats keeps the higher count and later timestamp', () => {
   );
 });
 
-test('collectProjectsFromEditorSettings unions default + named profile leftovers', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'snapswitch-user-'));
+test('collectProjectsFromEditorSettings unions default + named profile leftovers', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'yawswith-user-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const userDir = path.join(root, 'User');
-  const extId = 'publisher.snapswitch-vscode';
+  const extId = 'publisher.yawswith-vscode';
   const profileStorage = path.join(userDir, 'profiles', 'Work-abc', 'globalStorage', extId);
   fs.mkdirSync(path.join(userDir, 'profiles', 'Work-abc'), { recursive: true });
   fs.writeFileSync(
@@ -132,4 +136,28 @@ test('mergeRecents de-duplicates and caps at 5', () => {
   const merged = mergeRecents(first, extra);
   assert.equal(merged.length, 5);
   assert.deepEqual(merged.map(p => p.path), ['/1', '/2', '/3', '/4', '/5']);
+});
+
+test('renamed extension migrates SnapSwitch data once across profiles without reviving deletions', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'yawswith-migration-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const userDir = path.join(root, 'User');
+  const legacy = new SharedStore(path.join(userDir, 'globalStorage', 'jyashsakariyajain.snapswitch-vscode', 'state.json'));
+  legacy.setProjects([{ name: 'Existing', path: '/existing', group: 'Work' }]);
+  legacy.trackLaunch('/existing');
+  legacy.trackRecent('Existing', '/existing');
+  const original = fs.readFileSync(legacy.filePath, 'utf8');
+  const migrated = createSharedStore({ globalStorageUri: {
+    fsPath: path.join(userDir, 'profiles', 'work', 'globalStorage', 'www159-used.yawswith')
+  } });
+  assert.deepEqual(migrated.getProjects(), legacy.getProjects());
+  assert.deepEqual(migrated.getStats(), legacy.getStats());
+  assert.deepEqual(migrated.getRecents(), legacy.getRecents());
+  assert.equal(fs.readFileSync(legacy.filePath, 'utf8'), original, 'migration must not change old storage');
+  migrated.setProjects([]);
+  const reopened = createSharedStore({ globalStorageUri: {
+    fsPath: path.join(userDir, 'globalStorage', 'www159-used.yawswith')
+  } });
+  assert.deepEqual(reopened.getProjects(), []);
+  assert.deepEqual(reopened.getStats(), legacy.getStats());
 });

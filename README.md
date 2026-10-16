@@ -1,56 +1,51 @@
-# SnapSwitch for VS Code
+# Yawswith
 
-[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/JYashSakariyaJain.snapswitch-vscode?style=for-the-badge&label=VS%20Marketplace&color=007ACC)](https://marketplace.visualstudio.com/items?itemName=JYashSakariyaJain.snapswitch-vscode)
-[![OpenVSX](https://img.shields.io/open-vsx/v/JYashSakariyaJain/snapswitch-vscode?style=for-the-badge&label=Open%20VSX&color=a60ee5)](https://open-vsx.org/extension/JYashSakariyaJain/snapswitch-vscode)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/JYashSakariyaJain.snapswitch-vscode?style=for-the-badge&label=Installs&color=success)](https://marketplace.visualstudio.com/items?itemName=JYashSakariyaJain.snapswitch-vscode)
-[![License](https://img.shields.io/github/license/spinykiller/snapswitch?style=for-the-badge&color=orange)](https://github.com/spinykiller/snapswitch/blob/main/LICENSE)
-
-One-click project switching for VS Code — launch into your full project context instantly.
-
-![SnapSwitch Demo](./assets/demo.gif)
-
-![SnapSwitch Overview](./assets/demo.png)
-
-## 🛑 The Problem
-Working on a **multi-project setup** (especially on Mac) can be incredibly messy. There is **no native `Cmd+Tab` / `Ctrl+Tab` support** for switching between specific VS Code windows. Falling back to the window menu or native dock takes **more than 3 clicks** and completely breaks your flow. 
-
-## ⚡ The Solution
-**SnapSwitch** pins your projects directly into the bottom status bar and sidebar.
-- See your entire project workspace at a glance.
-- One click to switch immediately to that project window.
-- Or simply press `Cmd + <Project Number>` to switch instantly.
-Less clicking, zero mess—context switching made completely frictionless.
-
-## ✨ Features
-
-- **One-click status bar buttons** with prepended shortcuts (e.g. `1: Frontend`)
-- **Keyboard Shortcuts**: Switch between projects instantly with `Cmd + 1-9`
-- **Drag-and-Drop Sidebar Dashboard**: Manage, edit, and reorganize projects smoothly!
-- **Git State Indicators**: Live Git branch & uncommitted changes directly on UI badges
-- **Customization & Grouping**: Tag your projects under sub-folders or assign dynamic Codicons!
-- **Extended Workspace Syncing**: `.code-workspace` native support along with Analytics and Auto-Recent project logs.
-- **Pinned project picker**: `Cmd+Alt+P` opens a Quick Pick of pinned projects (fuzzy match on name and path).
+A local VS Code extension for switching pinned projects from the sidebar, status bar, or keyboard. Built with TypeScript and SolidJS.
 
 ## Install
 
-**From a Marketplace** (recommended):
-- [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=JYashSakariyaJain.snapswitch-vscode) — search "SnapSwitch" in the Extensions tab
-- [Open VSX Registry](https://open-vsx.org/extension/JYashSakariyaJain/snapswitch-vscode) — for VS Codium / open-source VS Code builds
-
-**From source** (dev):
 ```bash
-npx --yes vsce package --no-dependencies
+npm ci
+npm test
+npm run package
 # Then: Command Palette → Extensions: Install from VSIX...
 ```
+
+For local installation into VSCodium (including its local profiles) on this Mac, run `make install`. This builds the VSIX first. The Makefile only supports local development and installation:
+
+| Command | Action |
+|---|---|
+| `make check` | Check extension and sidebar types |
+| `make test` | Compile and run tests |
+| `make build` | Build the local VSIX |
+| `make install` | Build and install into VSCodium profiles |
+| `make clean` | Remove compiled output and VSIX files |
+
+`@vscode/vsce` and the `vscode:prepublish` npm script are still needed for VSIX packaging: `vsce package` runs that script to compile the extension before creating the package.
+
+Use Node.js 24 LTS (24.15 or newer) for development. The extension still supports VS Code 1.75 and newer.
+
+## Development
+
+The extension is written in TypeScript with strict type checking, and its sidebar uses SolidJS. Run `npm run check` to check both the extension and UI, or `npm test` to compile and run tests. For development, run `npm run watch` for the extension and `npm run watch:webview` in another terminal for the sidebar. `make test` and `make build` use the same npm scripts. Packaging compiles both parts automatically.
+
+- `src/extension.ts` registers commands and connects the views.
+- `src/projectRepository.ts` owns profile migration, settings mirroring, and change notifications; `src/sharedStore.ts` handles the existing `state.json` format and file watching.
+- `src/projects.ts` handles project actions; `src/sidebar.ts` and `src/views.ts` render the sidebar, tree, and status bar.
+- `src/webview/` contains the Solid components (`App`, `ProjectList`, and `ProjectItem`), the HTML shell, and typed messages. Sidebar styles live in `media/sidebar.css`.
+
+Compiled extension code goes into `out/`; Vite bundles Solid and the sidebar into `out/webview-ui/sidebar.js`. The sidebar loads local assets once, signals when it is ready, and receives subsequent state updates through messages. Rows are reconciled by project path to preserve focus and scroll position during updates.
+
+The VSIX includes the compiled runtime, bundled UI, and styles; sources, tests, and `node_modules` are excluded. Tests cover storage and migration, extension behavior with a simulated editor API and real file I/O, and the production Solid bundle in a jsdom browser environment. They do not launch an editor GUI.
 
 ## Usage
 
 | Action | How |
 |---|---|
-| Pin current project | Command Palette → **SnapSwitch: Pin Current Project** |
+| Pin current project | Command Palette → **Yawswith: Pin Current Project** |
 | Switch project (one click) | Click a project button in the Status Bar |
 | Switch project (shortcut) | **Cmd + <Number>** (1-9) for pinned projects |
-| Switch project (picker) | **Cmd+Alt+P** or Command Palette → **SnapSwitch: Switch Project** |
+| Switch project (picker) | **Cmd+Alt+P** or Command Palette → **Yawswith: Switch Project** |
 | Switch project (side bar) | Open **Pinned Projects** view and click a project |
 
 ## How It Works
@@ -61,3 +56,11 @@ Clicking a tab runs `vscode.openFolder` — same as File → Open Folder — swi
 ## Settings
 
 - `projectTabs.statusBarMaxItems`: number of pinned projects to show as one-click Status Bar buttons (0–20)
+
+## Migrating from SnapSwitch
+
+Yawswith uses the extension ID `www159-used.yawswith` and command IDs beginning with `yawswith.`. Disable the old SnapSwitch extension in VSCodium before enabling Yawswith to avoid duplicate UI and shortcuts. Existing `projectTabs` settings are retained; the shared project list, launch stats, and recents are copied from SnapSwitch on first use.
+
+## License
+
+Yawswith is licensed under [GNU AGPL v3](LICENSE) (`AGPL-3.0-only`). It is derived from SnapSwitch; the original MIT copyright and permission notice is retained in [LICENSES/SnapSwitch-MIT.txt](LICENSES/SnapSwitch-MIT.txt).

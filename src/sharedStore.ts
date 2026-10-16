@@ -1,11 +1,15 @@
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import type { Project, ProjectStats, RecentProject, SharedState } from './model';
+import { isRecord, readProjects } from './model';
+
+interface StorageContext { globalStorageUri?: { fsPath: string } }
 
 const STATE_FILE = 'state.json';
 const RECENT_LIMIT = 5;
 
-function emptyState() {
+export function emptyState(): SharedState {
   return { version: 1, projects: [], stats: {}, recents: [] };
 }
 
@@ -15,7 +19,7 @@ function emptyState() {
  * Application-wide storage (shared by every profile of this editor) is:
  *   .../User/globalStorage/<extId>
  */
-function toApplicationGlobalStorage(fsPath) {
+export function toApplicationGlobalStorage(fsPath?: string) {
   if (!fsPath) return null;
   const marker = `${path.sep}profiles${path.sep}`;
   const idx = fsPath.indexOf(marker);
@@ -24,22 +28,22 @@ function toApplicationGlobalStorage(fsPath) {
   return path.join(userDir, 'globalStorage', path.basename(fsPath));
 }
 
-function resolveSharedDir(context) {
+export function resolveSharedDir(context?: StorageContext) {
   const fromContext = toApplicationGlobalStorage(context?.globalStorageUri?.fsPath);
   if (fromContext) return fromContext;
-  return path.join(os.homedir(), '.snapswitch');
+  return path.join(os.homedir(), '.yawswith');
 }
 
-function findUserDir(globalStorageFsPath) {
+function findUserDir(globalStorageFsPath?: string) {
   const appStorage = toApplicationGlobalStorage(globalStorageFsPath);
   if (!appStorage) return null;
   return path.dirname(path.dirname(appStorage));
 }
 
-function readProjectsFromSettingsFile(filePath) {
+function readProjectsFromSettingsFile(filePath: string): Project[] {
   try {
-    const json = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    return Array.isArray(json['projectTabs.projects']) ? json['projectTabs.projects'] : [];
+    const json: unknown = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return isRecord(json) ? readProjects(json['projectTabs.projects']) : [];
   } catch (e) {
     return [];
   }
@@ -50,7 +54,7 @@ function readProjectsFromSettingsFile(filePath) {
  * named-profile settings.json. Read those files directly so the first
  * migration can still recover pinned projects.
  */
-function collectProjectsFromEditorSettings(globalStorageFsPath) {
+export function collectProjectsFromEditorSettings(globalStorageFsPath?: string): Project[] {
   const userDir = findUserDir(globalStorageFsPath);
   if (!userDir) return [];
   const files = [path.join(userDir, 'settings.json')];
@@ -64,15 +68,15 @@ function collectProjectsFromEditorSettings(globalStorageFsPath) {
   } catch (e) {
     // no profiles directory
   }
-  let all = [];
+  let all: Project[] = [];
   for (const file of files) {
     all = unionProjects(all, readProjectsFromSettingsFile(file));
   }
   return all;
 }
 
-function unionProjects(base, extra) {
-  const byPath = new Map();
+export function unionProjects(base: Project[] = [], extra: Project[] = []): Project[] {
+  const byPath = new Map<string, Project>();
   for (const list of [base, extra]) {
     for (const p of list || []) {
       if (p && p.path && !byPath.has(p.path)) byPath.set(p.path, p);
@@ -81,7 +85,7 @@ function unionProjects(base, extra) {
   return [...byPath.values()];
 }
 
-function mergeStats(a, b) {
+export function mergeStats(a: ProjectStats = {}, b: ProjectStats = {}): ProjectStats {
   const out = { ...(a || {}) };
   for (const [key, value] of Object.entries(b || {})) {
     if (!value) continue;
@@ -98,7 +102,7 @@ function mergeStats(a, b) {
   return out;
 }
 
-function mergeRecents(a, b) {
+export function mergeRecents(a: RecentProject[] = [], b: RecentProject[] = []): RecentProject[] {
   const seen = new Set();
   const out = [];
   for (const item of [...(a || []), ...(b || [])]) {
@@ -110,32 +114,41 @@ function mergeRecents(a, b) {
   return out;
 }
 
-function readState(filePath) {
+function readState(filePath: string): SharedState {
   try {
     const raw = fs.readFileSync(filePath, 'utf8');
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return emptyState();
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed)) return emptyState();
+    const stats: ProjectStats = {};
+    if (isRecord(parsed.stats)) {
+      for (const [key, value] of Object.entries(parsed.stats)) {
+        if (isRecord(value) && typeof value.count === 'number' && typeof value.last === 'number') {
+          stats[key] = { count: value.count, last: value.last };
+        }
+      }
+    }
     return {
       version: 1,
-      projects: Array.isArray(parsed.projects) ? parsed.projects : [],
-      stats: parsed.stats && typeof parsed.stats === 'object' ? parsed.stats : {},
-      recents: Array.isArray(parsed.recents) ? parsed.recents : []
+      projects: readProjects(parsed.projects),
+      stats,
+      recents: readProjects(parsed.recents)
     };
   } catch (e) {
     return emptyState();
   }
 }
 
-function writeState(filePath, data) {
+function writeState(filePath: string, data: SharedState) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const tmp = `${filePath}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
   fs.renameSync(tmp, filePath);
 }
 
-class SharedStore {
-  constructor(filePath) {
-    this.filePath = filePath;
+export class SharedStore {
+  private data: SharedState;
+
+  constructor(readonly filePath: string) {
     this.data = emptyState();
   }
 
@@ -144,7 +157,7 @@ class SharedStore {
     return this.data;
   }
 
-  save() {
+  private save() {
     writeState(this.filePath, this.data);
   }
 
@@ -152,7 +165,7 @@ class SharedStore {
     return this.data.projects;
   }
 
-  setProjects(projects) {
+  setProjects(projects: Project[]) {
     this.data.projects = Array.isArray(projects) ? projects : [];
     this.save();
   }
@@ -165,7 +178,7 @@ class SharedStore {
     return this.data.recents;
   }
 
-  trackLaunch(projectPath) {
+  trackLaunch(projectPath: string) {
     if (!projectPath) return;
     if (!this.data.stats[projectPath]) this.data.stats[projectPath] = { count: 0, last: 0 };
     this.data.stats[projectPath].count++;
@@ -173,7 +186,7 @@ class SharedStore {
     this.save();
   }
 
-  trackRecent(name, projectPath) {
+  trackRecent(name: string, projectPath: string) {
     if (!projectPath) return;
     this.data.recents = mergeRecents([{ name, path: projectPath }], this.data.recents);
     this.save();
@@ -183,7 +196,7 @@ class SharedStore {
    * One-time union of profile-local leftovers into the shared file.
    * After this, the file is the source of truth.
    */
-  hydrateFromProfile({ projects, stats, recents } = {}) {
+  hydrateFromProfile({ projects, stats, recents }: Partial<SharedState> = {}) {
     this.data.projects = unionProjects(this.data.projects, projects);
     this.data.stats = mergeStats(this.data.stats, stats);
     this.data.recents = mergeRecents(this.data.recents, recents);
@@ -191,8 +204,8 @@ class SharedStore {
     return this.data;
   }
 
-  watch(onChange) {
-    let timer = null;
+  watch(onChange: (state: SharedState) => void) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const fire = () => {
       const next = readState(this.filePath);
       if (JSON.stringify(next) === JSON.stringify(this.data)) return;
@@ -223,21 +236,18 @@ class SharedStore {
   }
 }
 
-function createSharedStore(context) {
+export function createSharedStore(context?: StorageContext) {
   const dir = resolveSharedDir(context);
   const store = new SharedStore(path.join(dir, STATE_FILE));
   store.load();
+  // The publisher/name change gives Yawswith a new storage directory. Copy the
+  // old file once; an existing Yawswith file (even an empty one) is authoritative.
+  if (!fs.existsSync(store.filePath)) {
+    const legacyDir = context?.globalStorageUri?.fsPath
+      ? path.join(path.dirname(dir), 'jyashsakariyajain.snapswitch-vscode')
+      : path.join(os.homedir(), '.snapswitch');
+    const legacyFile = path.join(legacyDir, STATE_FILE);
+    if (fs.existsSync(legacyFile)) store.hydrateFromProfile(readState(legacyFile));
+  }
   return store;
 }
-
-module.exports = {
-  SharedStore,
-  createSharedStore,
-  toApplicationGlobalStorage,
-  resolveSharedDir,
-  collectProjectsFromEditorSettings,
-  unionProjects,
-  mergeStats,
-  mergeRecents,
-  emptyState
-};
